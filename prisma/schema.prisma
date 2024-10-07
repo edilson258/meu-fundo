@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  phone        String   @unique
+  code         String   @unique
+  role         Role     @default(USER)
+  password     String
+  account      Account?
+  inviter      User?    @relation("UserInviter", fields: [inviterCode], references: [code])
+  inviterCode  String?  @map("inviter_code")
+  invitedUsers User[]   @relation("UserInviter")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Account {
+  id                  String                @id @default(uuid())
+  balance             Float                 @default(0.0)
+  totalWin            Float                 @default(0.0)
+  bonus               Float                 @default(0.0)
+  user                User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String                @unique @map("user_id")
+  accountSector       AccountSector?
+  DepositConfirmation DepositConfirmation[]
+  Withdraw            Withdraw[]
+  createdAt           DateTime              @default(now()) @map("created_at")
+
+  @@map("accounts")
+}
+
+model AccountSector {
+  id              String   @id @default(uuid())
+  activationDate  DateTime @default(now())
+  lastPaymentDate DateTime @default(now())
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId       String   @unique @map("account_id")
+  sector          Sector   @relation(fields: [sectorId], references: [id])
+  sectorId        String   @unique @map("secto_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("account_sectors")
+}
+
+model Sector {
+  id                  String                @id @default(uuid())
+  slug                String                @unique
+  name                String                @unique
+  price               Float
+  dailyPayment        Float                 @map("daily_payment")
+  durationInDays      Int                   @map("duration_in_days")
+  images              ImageLink[]
+  accountSectors      AccountSector[]
+  DepositConfirmation DepositConfirmation[]
+  createdAt           DateTime              @default(now()) @map("created_at")
+
+  @@map("sectors")
+}
+
+model ImageLink {
+  id        String   @id @default(uuid())
+  url       String
+  sector    Sector   @relation(fields: [sectorId], references: [id], onDelete: Cascade)
+  sectorId  String   @unique @map("secto_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("image_links")
+}
+
+model DepositConfirmation {
+  id        String   @id @default(uuid())
+  status    Status   @default(PENDING)
+  message   String
+  Account   Account? @relation(fields: [accountId], references: [id])
+  accountId String?  @map("account_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  sector    Sector   @relation(fields: [sectorId], references: [id])
+  sectorId  String   @map("sector_id")
+
+  @@map("deposit_confirmations")
+}
+
+model Withdraw {
+  id        String   @id @default(uuid())
+  amount    Float
+  status    Status   @default(PENDING)
+  Account   Account? @relation(fields: [accountId], references: [id])
+  accountId String?  @map("account_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("withdraws")
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
